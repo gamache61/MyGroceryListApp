@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head><style>
+@font-face {
+  font-family: "Optimistic";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/OptimisticAI_VF_Optimized.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Optimistic Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/OptimisticMono_W_TextRegular.woff2") format("woff2");
+}
+:where(html) {
+  font-family: "Optimistic", system-ui, sans-serif;
+}
+:where(code, pre, kbd, samp) {
+  font-family: "Optimistic Mono", ui-monospace, monospace;
+}
+</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pantry Check</title>
+<style>
+*{box-sizing:border-box;font-family:-apple-system,system-ui,sans-serif}
+body{margin:0;padding:16px;background:#f5f5f5}
+h1{font-size:28px;margin:0 0 4px}
+.sub{color:#666;margin:0 0 16px}
+.add-row{display:flex;gap:8px;margin:12px 0}
+.add-row input{flex:1;padding:14px;border:2px solid #ddd;border-radius:12px;font-size:16px}
+.add-row button{padding:14px 20px;background:#000;color:#fff;border:0;border-radius:12px;font-weight:600}
+.tabs{display:flex;gap:8px;margin:12px 0}
+.tab{flex:1;padding:10px;border:0;border-radius:10px;font-weight:600;background:#e5e5e5}
+.tab.active{background:#000;color:#fff}
+.stats{display:flex;gap:12px;margin:8px 0;color:#666;font-size:13px}
+.letter{font-weight:800;font-size:18px;margin:20px 0 8px;padding:6px 0;border-bottom:2px solid #000}
+.item{display:flex;align-items:center;gap:10px;background:#fff;padding:14px 12px;border-radius:12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,0.06)}
+.item.out{opacity:0.6}
+.cb{width:28px;height:28px;accent-color:#000;flex-shrink:0}
+.name{flex:1;font-size:17px;font-weight:600;color:#111;min-width:0;word-break:break-word}
+.pills{display:flex;gap:3px;flex-shrink:0}
+.pill{font-size:11px;line-height:1;padding:5px 6px;border-radius:6px;border:1px solid #e5e5e5;background:#f9f9f9;min-width:28px;text-align:center}
+.pill.on{background:#000;color:#fff;border-color:#000}
+.del{color:#ccc;border:0;background:none;font-size:22px;padding:0 4px;flex-shrink:0}
+.search{width:100%;padding:12px;border:2px solid #ddd;border-radius:12px;margin:8px 0;font-size:16px}
+.az{display:flex;gap:4px;overflow-x:auto;padding:8px 0}
+.az button{padding:6px 10px;border:1px solid #ddd;border-radius:20px;background:#fff;min-width:32px}
+</style>
+</head>
+<body>
+<h1>Pantry Check</h1>
+<p class="sub">Check = in stock • Uncheck = grocery list</p>
+<input id="search" class="search" placeholder="Search items..." oninput="render()">
+<div class="tabs">
+<button id="tabAll" class="tab active" onclick="setTab('all')">All A-Z</button>
+<button id="tabGroc" class="tab" onclick="setTab('groc')">Grocery List</button>
+</div>
+<div class="stats"><span id="inCount"></span><span id="outCount"></span></div>
+<div class="az" id="az"></div>
+<div class="add-row">
+<input id="newItem" placeholder="Add item e.g. Hot Sauce" onkeydown="if(event.key==='Enter')add()">
+<button onclick="add()">Add</button>
+</div>
+<div id="list"></div>
+<script>
+let tab='all';
+let filterLetter='';
+let items=[
+{n:"Almond Milk",loc:["fridge"],in:true},{n:"Apples",loc:["fridge","pantry"],in:true},{n:"Avocados",loc:["pantry"],in:false},
+{n:"Bacon",loc:["fridge","freezer"],in:false},{n:"Bananas",loc:["pantry"],in:true},{n:"Blueberries",loc:["fridge","freezer"],in:true},{n:"Bread",loc:["pantry","freezer"],in:false},{n:"Broccoli",loc:["fridge","freezer"],in:true},{n:"Butter",loc:["fridge"],in:true},
+{n:"Carrots",loc:["fridge"],in:true},{n:"Cereal",loc:["pantry"],in:false},{n:"Cheese",loc:["fridge"],in:true},{n:"Chicken",loc:["fridge","freezer"],in:false},{n:"Coffee",loc:["pantry"],in:true},
+{n:"Deli Turkey",loc:["fridge"],in:false},{n:"Dough",loc:["freezer"],in:true},
+{n:"Eggs",loc:["fridge"],in:true},{n:"Eggplant",loc:["fridge"],in:false},
+{n:"Fish Fillets",loc:["freezer"],in:false},{n:"Flour",loc:["pantry"],in:true},{n:"Frozen Peas",loc:["freezer"],in:true},
+{n:"Garlic",loc:["pantry"],in:true},{n:"Grapes",loc:["fridge"],in:false},{n:"Greek Yogurt",loc:["fridge"],in:true},{n:"Ground Beef",loc:["freezer","fridge"],in:false},
+{n:"Ham",loc:["fridge","freezer"],in:true},{n:"Honey",loc:["pantry"],in:true},
+{n:"Ice Cream",loc:["freezer"],in:false},{n:"Ice Cubes",loc:["freezer"],in:true},
+{n:"Jam",loc:["fridge","pantry"],in:true},{n:"Juice",loc:["fridge"],in:false},
+{n:"Kale",loc:["fridge"],in:false},{n:"Ketchup",loc:["fridge","pantry"],in:true},
+{n:"Lasagna",loc:["freezer"],in:false},{n:"Lemons",loc:["fridge"],in:true},{n:"Lettuce",loc:["fridge"],in:true},
+{n:"Maple Syrup",loc:["pantry"],in:true},{n:"Mayo",loc:["fridge"],in:true},{n:"Milk",loc:["fridge"],in:false},{n:"Mushrooms",loc:["fridge"],in:true},
+{n:"Noodles",loc:["pantry"],in:true},{n:"Nuts",loc:["pantry"],in:true},
+{n:"Oats",loc:["pantry"],in:true},{n:"Olive Oil",loc:["pantry"],in:true},{n:"Onions",loc:["pantry"],in:true},{n:"Oranges",loc:["pantry","fridge"],in:false},
+{n:"Pasta",loc:["pantry"],in:true},{n:"Peanut Butter",loc:["pantry"],in:true},{n:"Pizza",loc:["freezer"],in:false},{n:"Potatoes",loc:["pantry"],in:true},
+{n:"Quinoa",loc:["pantry"],in:true},{n:"Queso",loc:["fridge"],in:false},
+{n:"Ranch",loc:["fridge"],in:true},{n:"Raspberries",loc:["fridge","freezer"],in:false},{n:"Rice",loc:["pantry"],in:true},
+{n:"Salsa",loc:["fridge","pantry"],in:true},{n:"Salt",loc:["pantry"],in:true},{n:"Spinach",loc:["fridge","freezer"],in:false},{n:"Steak",loc:["freezer"],in:false},{n:"Strawberries",loc:["fridge"],in:true},{n:"Sugar",loc:["pantry"],in:true},
+{n:"Tomatoes",loc:["fridge","pantry"],in:true},{n:"Tortillas",loc:["pantry","fridge"],in:false},{n:"Turkey",loc:["freezer"],in:false},
+{n:"Udon",loc:["pantry"],in:true},
+{n:"Vanilla Extract",loc:["pantry"],in:true},{n:"Vegetables Mix",loc:["freezer"],in:true},
+{n:"Waffles",loc:["freezer"],in:false},{n:"Water",loc:["pantry"],in:true},{n:"Whipped Cream",loc:["fridge"],in:false},
+{n:"Xanthan Gum",loc:["pantry"],in:true},
+{n:"Yeast",loc:["pantry"],in:true},{n:"Yogurt",loc:["fridge"],in:true},
+{n:"Zucchini",loc:["fridge"],in:false}
+];
+try{let saved=localStorage.getItem('pantrySimple'); if(saved){items=JSON.parse(saved)}}catch(e){}
+function save(){try{localStorage.setItem('pantrySimple',JSON.stringify(items))}catch(e){}}
+function setTab(t){tab=t; document.getElementById('tabAll').className='tab'+(t==='all'?' active':''); document.getElementById('tabGroc').className='tab'+(t==='groc'?' active':''); render();}
+function add(){let v=document.getElementById('newItem').value.trim(); if(!v)return; items.push({n:v,loc:["pantry"],in:false}); document.getElementById('newItem').value=''; save(); render();}
+function toggle(i){items[i].in=!items[i].in; save(); render();}
+function toggleLoc(i,loc){let a=items[i].loc; if(a.includes(loc)){items[i].loc=a.filter(x=>x!==loc)}else{items[i].loc.push(loc)} save(); render();}
+function del(i){if(confirm('Delete '+items[i].n+'?')){items.splice(i,1); save(); render();}}
+function setLetter(l){filterLetter=filterLetter===l?'':l; render();}
+function render(){
+let q=document.getElementById('search').value.toLowerCase();
+let filtered=items.map((it,idx)=>({...it,idx})).filter(it=>it.n.toLowerCase().includes(q));
+if(tab==='groc') filtered=filtered.filter(it=>!it.in);
+if(filterLetter) filtered=filtered.filter(it=>it.n[0].toUpperCase()===filterLetter);
+let inC=items.filter(it=>it.in).length;
+let outC=items.filter(it=>!it.in).length;
+document.getElementById('inCount').textContent=inC+' in stock';
+document.getElementById('outCount').textContent=outC+' grocery list';
+let azDiv=document.getElementById('az');
+azDiv.innerHTML='';
+'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l=>{
+let b=document.createElement('button'); b.textContent=l; if(filterLetter===l)b.style.background='#000',b.style.color='#fff'; b.onclick=()=>setLetter(l); azDiv.appendChild(b);
+});
+let list=document.getElementById('list');
+list.innerHTML='';
+let groups={};
+filtered.forEach(it=>{
+let L=it.n[0].toUpperCase();
+if(!groups[L])groups[L]=[];
+groups[L].push(it);
+});
+Object.keys(groups).sort().forEach(L=>{
+let h=document.createElement('div'); h.className='letter'; h.textContent=L+' - '+groups[L].length; list.appendChild(h);
+groups[L].sort((a,b)=>a.n.localeCompare(b.n)).forEach(it=>{
+let row=document.createElement('div'); row.className='item'+(it.in?'':' out');
+let cb=document.createElement('input'); cb.type='checkbox'; cb.className='cb'; cb.checked=it.in; cb.onchange=()=>toggle(it.idx);
+let name=document.createElement('div'); name.className='name'; name.textContent=it.n;
+let pills=document.createElement('div'); pills.className='pills';
+[{k:'freezer',s:'❄️'},{k:'fridge',s:'🧊'},{k:'pantry',s:'🥫'}].forEach(o=>{
+let p=document.createElement('button'); p.className='pill'+(it.loc.includes(o.k)?' on':''); p.textContent=o.s; p.title=o.k; p.onclick=()=>toggleLoc(it.idx,o.k); pills.appendChild(p);
+});
+let d=document.createElement('button'); d.className='del'; d.textContent='×'; d.onclick=()=>del(it.idx);
+row.appendChild(cb); row.appendChild(name); row.appendChild(pills); row.appendChild(d);
+list.appendChild(row);
+});
+});
+if(filtered.length===0){list.innerHTML='<p style="text-align:center;color:#999;margin-top:40px">No items. Add some above.</p>'}
+}
+render();
+</script>
+<script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}function isInlineMediaSlotElement(node){return !!(node&&node.getAttribute&&node.getAttribute("data-clippy-inline-media-slot")!==null)}function findInlineMediaSlot(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(isInlineMediaSlotElement(node))return node}return null}function readInlineMediaUrl(node){if(!node)return null;return node.getAttribute&&((node.getAttribute("data-clippy-inline-media-url")||node.getAttribute("data-url")||node.getAttribute("data_url")))||node.href||null}function stripHash(url){return String(url).replace(/#.*$/,"")}function urlsMatch(a,b){if(!a||!b)return false;try{return stripHash(new URL(a,loc).href)===stripHash(new URL(b,loc).href)}catch(_){return stripHash(a)===stripHash(b)}}function isFirstPartyReelUrl(value){try{var url=new URL(value,loc);if(url.protocol!=="https:")return false;var host=url.hostname.toLowerCase();var supported=host==="instagram.com"||host.endsWith(".instagram.com")||host==="facebook.com"||host.endsWith(".facebook.com");return supported&&/\/reels?\//i.test(url.pathname)}catch(_){return false}}function isInlineMediaUrlClick(node,href){var slot=findInlineMediaSlot(node);if(!slot)return false;var slotUrl=readInlineMediaUrl(slot);if(slotUrl)return urlsMatch(href,slotUrl);return isFirstPartyReelUrl(href)}function findDataHref(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(node.getAttribute){var href=node.getAttribute("data-href")||node.getAttribute("data-url");if(href)return{href:href,node:node}}}return null}var nativeOpen=window.open;window.open=function(url){if(parent!==window&&typeof url==="string"&&/^https?:\/\//.test(url)){parent.postMessage({type:"ecto:usercontent-link-click",href:url},"*");return null}return nativeOpen?nativeOpen.apply(window,arguments):null};document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;if(parent===window)return;var a=target.closest?target.closest("a[href]"):null;if(a&&a.href&&/^https?:\/\//.test(a.href)&&a.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(a,a.href))return;var productId=extractProductId(target)||extractProductId(a);if(productId){e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*");return}e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:a.href},"*");return}var dataHref=findDataHref(target);if(dataHref&&/^https?:\/\//.test(dataHref.href)&&dataHref.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(dataHref.node,dataHref.href))return;e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:dataHref.href},"*")}},true)})();</script><script>(function(){var FOCUS_TYPE="ecto:artifact-focus-request";var CLOSE_TYPE="ecto:artifact-close-request";function focusArtifactDocument(){var body=document.body;if(!body)return;try{window.focus();}catch(e){}if(!body.hasAttribute("tabindex"))body.setAttribute("tabindex","-1");try{body.focus({preventScroll:true});}catch(e){try{body.focus();}catch(e2){}}}window.addEventListener("message",function(event){if(event.source!==window.parent)return;var data=event.data;if(!data||typeof data!=="object"||data.type!==FOCUS_TYPE)return;if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",focusArtifactDocument,{once:true});return;}focusArtifactDocument();});window.addEventListener("keydown",function(event){if(event.key!=="Escape")return;window.setTimeout(function(){if(event.defaultPrevented)return;window.parent.postMessage({type:CLOSE_TYPE},"*");},0);});})();</script></body>
+</html>
